@@ -7,8 +7,38 @@ let
     lang ? "en",
     articleDirs ? [],
     standalonePages ? [],
+    homemanagerModules ? null,
+    nixosModules ? null,
   }: let
     templateFile = "$out/pandoc/template.html";
+    evalHome = lib.evalModules {
+      specialArgs = {inherit pkgs;};
+      modules = [
+        {
+          # disabled checking that all option definitions have matching declarations
+          config._module.check = false;
+        }
+        homemanagerModules
+      ];
+    };
+    # generate our docs
+    optionsDocHome = pkgs.nixosOptionsDoc {
+      inherit (evalHome) options;
+    };
+
+    # Same for nixos
+    evalNixos = lib.evalModules {
+      specialArgs = {inherit pkgs;};
+      modules = [
+        {
+          config._module.check = false;
+        }
+        nixosModules
+      ];
+    };
+    optionsDocNixos = pkgs.nixosOptionsDoc {
+      inherit (evalNixos) options;
+    };
   in with pkgs.lib; rec {
     dependencies = with pkgs; [
       pandoc
@@ -73,37 +103,82 @@ let
             -f markdown+smart \
             -o "$out"/"$dir_path"/"$filename_no_ext".html \
             "$file_path"
-        }
+          }
 
-        ${
-          strings.concatStringsSep "\n\n" (map (x: ''
-            filename=$(echo "${x.inputFile}" | sed -E 's:/nix/store/[a-z0-9]+-([^/]+):\1:')
-            filename=$(basename -- "$filename")
-            filename_no_ext="''${filename%.*}"
+          ${
+            strings.concatStringsSep "\n\n" (map (x: ''
+              filename=$(echo "${x.inputFile}" | sed -E 's:/nix/store/[a-z0-9]+-([^/]+):\1:')
+              filename=$(basename -- "$filename")
+              filename_no_ext="''${filename%.*}"
 
-            pandoc \
-              --standalone \${if x ? title then "--title ${x.title} \\\n" else ""}
-              --template "${templateFile}" \
-              --css "${cssFile}" \
-              --highlight-style "${highlightFile}" \
-              --metadata timestamp="$timestamp" \
-              --metadata debug="$debug" \
-              --lua-filter ${./pandoc/lua/anchor-links.lua} \
-              -V lang=en \
-              -V --mathjax \
-              -f markdown+smart \
-              -o "$out"/"$filename_no_ext".html \
-              ${x.inputFile}
-          '') standalonePages)
-        }
+              pandoc \
+                --standalone \${if x ? title then "--title ${x.title} \\\n" else ""}
+                --template "${templateFile}" \
+                --css "${cssFile}" \
+                --highlight-style "${highlightFile}" \
+                --metadata timestamp="$timestamp" \
+                --metadata debug="$debug" \
+                --lua-filter ${./pandoc/lua/anchor-links.lua} \
+                -V lang=en \
+                -V --mathjax \
+                -f markdown+smart \
+                -o "$out"/"$filename_no_ext".html \
+                ${x.inputFile}
+            '') standalonePages)
+          }
 
-        cd "$out"
-        for dir in "''${dirs[@]}"; do
-          find "$dir" -type f -name "*.md" | while IFS= read -r file; do
-            buildarticle "$file"
+          cd "$out"
+          for dir in "''${dirs[@]}"; do
+            find "$dir" -type f -name "*.md" | while IFS= read -r file; do
+              buildarticle "$file"
+            done
           done
-        done
-        '';
+
+        buildoptions() {
+          filepath="$1"
+          title="$2"
+          filename=$(basename -- "$filepath")
+          filename_no_ext="''${filename%.*}"
+
+          pandoc \
+            --standalone \
+            --metadata title="$title" \
+            --metadata timestamp="$timestamp" \
+            --highlight-style "${highlightFile}" \
+            --template "${templateFile}" \
+            --css "${cssFile}" \
+            --lua-filter ${./pandoc/lua/indent-code-blocks.lua} \
+            --lua-filter ${./pandoc/lua/anchor-links.lua} \
+            --lua-filter ${./pandoc/lua/code-default-to-nix.lua} \
+            --lua-filter ${./pandoc/lua/headers-lvl2-to-lvl3.lua} \
+            --lua-filter ${./pandoc/lua/remove-declared-by.lua} \
+            --lua-filter ${./pandoc/lua/inline-to-fenced-nix.lua} \
+            --lua-filter ${./pandoc/lua/remove-module-args.lua} \
+            -V lang=en \
+            -V --mathjax \
+            -f markdown+smart \
+            -o "$out"/"$filename_no_ext".html \
+            "$filepath"
+        }
+
+        # Generate nixos md docs
+        ${
+          ""
+          #if nixosModules != null then ''
+          #  cat ${optionsDocNixos.optionsCommonMark} > "$out"/nixos.md
+          #  buildoptions "$out"/nixos.md "Nixos Modules - Options Documentation"
+          #'' else ""
+        }
+
+        # Generate home-manager md docs
+        ${
+          ""
+          #if homemanagerModules != null then ''
+          #  cat ${optionsDocHome.optionsCommonMark} > "$out"/home.md
+          #  buildoptions "$out"/home.md "Home Manager Modules - Options Documentation"
+          #'' else ""
+        }
+      '';
     };
 
     loop = pkgs.writeShellApplication {
