@@ -1,5 +1,5 @@
 let
-  lib = {
+  exports = {
     pkgs,
     debug ? false,
     cssFile ? "/pandoc/style.css",
@@ -7,11 +7,17 @@ let
     lang ? "en",
     articleDirs ? [],
     standalonePages ? [],
+    navbar ? [],
+    headerTitle ? "",
     homemanagerModules ? null,
     nixosModules ? null,
   }: let
-    templateFile = "$out/pandoc/template.html";
-    evalHome = lib.evalModules {
+    templateFile = (import ./template.nix {
+      pkgs = pkgs;
+      headerTitle = headerTitle;
+      navbar = navbar;
+    });
+    evalHome = pkgs.lib.evalModules {
       specialArgs = {inherit pkgs;};
       modules = [
         {
@@ -27,7 +33,7 @@ let
     };
 
     # Same for nixos
-    evalNixos = lib.evalModules {
+    evalNixos = pkgs.lib.evalModules {
       specialArgs = {inherit pkgs;};
       modules = [
         {
@@ -111,8 +117,8 @@ let
               filename=$(basename -- "$filename")
               filename_no_ext="''${filename%.*}"
 
-              pandoc \
-                --standalone \${if x ? title then "--title ${x.title} \\\n" else ""}
+              pandoc ${if x ? title then "--metadata title=\"${x.title}\"" else ""} \
+                --standalone \
                 --template "${templateFile}" \
                 --css "${cssFile}" \
                 --highlight-style "${highlightFile}" \
@@ -135,9 +141,10 @@ let
           done
 
         buildoptions() {
-          filepath="$1"
+          file_path="$1"
           title="$2"
-          filename=$(basename -- "$filepath")
+          filename=$(basename -- "$file_path")
+          dir_path=$(dirname "$file_path")
           filename_no_ext="''${filename%.*}"
 
           pandoc \
@@ -157,26 +164,26 @@ let
             -V lang=en \
             -V --mathjax \
             -f markdown+smart \
-            -o "$out"/"$filename_no_ext".html \
-            "$filepath"
+            -o "$out"/"$dir_path"/"$filename_no_ext".html \
+            "$file_path"
         }
 
         # Generate nixos md docs
         ${
-          ""
-          #if nixosModules != null then ''
-          #  cat ${optionsDocNixos.optionsCommonMark} > "$out"/nixos.md
-          #  buildoptions "$out"/nixos.md "Nixos Modules - Options Documentation"
-          #'' else ""
+          if nixosModules != null then ''
+            mkdir "$out/nixos"
+            cat ${optionsDocNixos.optionsCommonMark} > nixos/index.md
+            buildoptions nixos/index.md "Nixos Modules - Options Documentation"
+          '' else ""
         }
 
         # Generate home-manager md docs
         ${
-          ""
-          #if homemanagerModules != null then ''
-          #  cat ${optionsDocHome.optionsCommonMark} > "$out"/home.md
-          #  buildoptions "$out"/home.md "Home Manager Modules - Options Documentation"
-          #'' else ""
+          if homemanagerModules != null then ''
+            mkdir "$out/home-manager"
+            cat ${optionsDocHome.optionsCommonMark} > home-manager/index.md
+            buildoptions home-manager/index.md "Home Manager Modules - Options Documentation"
+          '' else ""
         }
       '';
     };
@@ -205,24 +212,6 @@ let
       '';
     };
 
-    #package = let
-    #  x = pkgs.writeText "my-file" ''
-    #    export PATH="$coreutils/bin"
-    #    mkdir $out
-    #    cp -r ${./pandoc} $out
-    #  '';
-    #in derivation {
-    #  name = "mk-pandoc-package";
-    #  system = pkgs.system;
-    #  coreutils = pkgs.coreutils;
-    #  outputs = [ "out" ];
-    #  buildInputs = [ pkgs.coreutils ];
-    #  #phases = ["unpackPhase" "buildPhase" "installPhase"];
-    #  builder = "${pkgs.lib.getExe pkgs.bash}";
-    #  #builder = "${pkgs.lib.getExe script}";
-    #  args = [ "${pkgs.lib.getExe script}" ];
-    #};
-
     package = pkgs.stdenv.mkDerivation {
       name = "mk-pandoc-package";
       src = ./.;
@@ -232,4 +221,4 @@ let
     };
 
   };
-in lib
+in exports
