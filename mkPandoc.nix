@@ -1,7 +1,7 @@
 let
   exports = {
     pkgs,
-    src,
+    src ? ./.,
     debug ? false,
     cssFile ? "/pandoc/style.css",
     highlightFile ? ./pandoc/gruvbox-light.theme,
@@ -88,15 +88,14 @@ let
           done
 
           mkdir -p "$out"
-          pandoc_in="${./pandoc}"
           pandoc_out="$out/$(echo "${./pandoc}" | sed -E 's:/nix/store/[a-z0-9]+-([^/]+):\1:')"
-          rsync -trv --size-only --chmod=u+w --no-perms --modify-window=1 --delete "${./pandoc}/" "$pandoc_out"
+          rsync -tr --size-only --chmod=u+w --no-perms --modify-window=1 --delete "${./pandoc}/" "$pandoc_out"
           for i in "''${!article_dirs[@]}"; do
-            mkdir -p "$out/$(dirname "''${article_dirs[i]}")"
+            mkdir -p "$out/''${article_dirs[i]}"
             rsync -tr --size-only --chmod=u+w --no-perms --modify-window=1 "''${article_dirs_full_paths[i]}/" "$out/''${article_dirs[i]}"
           done
           for i in "''${!included_dirs[@]}"; do
-            mkdir -p "$out/$(dirname "''${included_dirs[i]}")"
+            mkdir -p "$out/''${included_dirs[i]}"
             rsync -tr --size-only --chmod=u+w --no-perms --modify-window=1 "''${included_dirs_full_paths[i]}/" "$out/''${included_dirs[i]}"
           done
 
