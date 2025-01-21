@@ -2,6 +2,7 @@
   pkgs,
   headerTitle,
   navbar ? [],
+  favicons ? {},
 }: with pkgs.lib; let
   navbarHelper = x: if x != null then ''<a href="${x.location}">${x.title}</a>'' else "";
 in pkgs.writeText "template.html" ''
@@ -47,6 +48,16 @@ in pkgs.writeText "template.html" ''
       <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
     <![endif]-->
     <script src="/pandoc/script.js"></script>
+    <!-- Favicons -->
+      ${
+        let icons = builtins.mapAttrs (key: value:
+          if key == "167x167" || key == "180x180" then
+            ''<link rel="apple-touch-icon" type="image/png" sizes="${key}" href="${value}">''
+          else
+            ''<link rel="icon" type="image/png" sizes="${key}" href="${value}">''
+        ) favicons;
+        in strings.concatStringsSep "\n" (attrsets.attrValues icons)
+      }
   </head>
 
   <body>

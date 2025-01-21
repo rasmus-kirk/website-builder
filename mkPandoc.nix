@@ -1,13 +1,16 @@
 let
   exports = {
     pkgs,
+    src,
     debug ? false,
     cssFile ? "/pandoc/style.css",
     highlightFile ? ./pandoc/gruvbox-light.theme,
     lang ? "en",
     articleDirs ? [],
+    includedDirs ? [],
     standalonePages ? [],
     navbar ? [],
+    favicons ? {},
     headerTitle ? "",
     homemanagerModules ? null,
     nixosModules ? null,
@@ -16,6 +19,7 @@ let
       pkgs = pkgs;
       headerTitle = headerTitle;
       navbar = navbar;
+      favicons = favicons;
     });
     evalHome = pkgs.lib.evalModules {
       specialArgs = {inherit pkgs;};
@@ -51,6 +55,7 @@ let
       coreutils
       findutils
       gnused
+      rsync
     ];
 
     script = pkgs.writeShellApplication {
@@ -60,22 +65,38 @@ let
 
       text = ''
         # shellcheck disable=SC2269
-        out=''${1:-"$out"}
-        debug=''${2:-"${toString debug}"}
+        in=''${1:-${src}}
+        out=''${2:-"$out"}
+        debug=''${3:-"${toString debug}"}
         timestamp="$(date -u '+%Y-%m-%d - %H:%M:%S %Z')"
 
-        full_paths=()
-        dirs=()
-        ${strings.concatStringsSep "\n" (map (x: ''full_paths+=("${x}")'') articleDirs)}
+        cd "$in"
 
-        for path in "''${full_paths[@]}"; do
-          dirs+=( "$(echo "$path" | sed -E 's:/nix/store/[a-z0-9]+-([^/]+):\1:')" )
+        article_dirs_full_paths=()
+        article_dirs=()
+        ${strings.concatStringsSep "\n" (map (x: ''article_dirs_full_paths+=("${x}")'') articleDirs)}
+        for path in "''${article_dirs_full_paths[@]}"; do
+          article_dirs+=( "$(basename "$(echo "$path" | sed 's/\/$//g' | sed -E 's:/nix/store/[a-z0-9]+-([^/]+):\1:')")" )
+        done
+
+        included_dirs_full_paths=()
+        included_dirs=()
+        ${strings.concatStringsSep "\n" (map (x: ''included_dirs_full_paths+=("${x}")'') includedDirs)}
+        for path in "''${included_dirs_full_paths[@]}"; do
+          included_dirs+=( "$(echo "$path" | sed 's/\/$//g' | sed -E 's:/nix/store/[a-z0-9]+-([^/]+):\1:')" )
         done
 
         mkdir -p "$out"
-        cp -r ${./pandoc} "$out/$(echo "${./pandoc}" | sed -E 's:/nix/store/[a-z0-9]+-([^/]+):\1:')"
-        for i in "''${!dirs[@]}"; do
-          cp --no-preserve=mode -r "''${full_paths[i]}" "$out/''${dirs[i]}"
+        pandoc_in="${./pandoc}"
+        pandoc_out="$out/$(echo "${./pandoc}" | sed -E 's:/nix/store/[a-z0-9]+-([^/]+):\1:')"
+        rsync -trv --size-only --chmod=u+w --no-perms --modify-window=1 --delete "${./pandoc}/" "$pandoc_out"
+        for i in "''${!article_dirs[@]}"; do
+          mkdir -p "$out/$(dirname "''${article_dirs[i]}")"
+          rsync -tr --size-only --chmod=u+w --no-perms --modify-window=1 "''${article_dirs_full_paths[i]}/" "$out/''${article_dirs[i]}"
+        done
+        for i in "''${!included_dirs[@]}"; do
+          mkdir -p "$out/$(dirname "''${included_dirs[i]}")"
+          rsync -tr --size-only --chmod=u+w --no-perms --modify-window=1 "''${included_dirs_full_paths[i]}/" "$out/''${included_dirs[i]}"
         done
 
         buildarticle () {
@@ -109,36 +130,37 @@ let
             -f markdown+smart \
             -o "$out"/"$dir_path"/"$filename_no_ext".html \
             "$file_path"
-          }
+        }
 
-          ${
-            strings.concatStringsSep "\n\n" (map (x: ''
-              filename=$(echo "${x.inputFile}" | sed -E 's:/nix/store/[a-z0-9]+-([^/]+):\1:')
-              filename=$(basename -- "$filename")
-              filename_no_ext="''${filename%.*}"
+        ${
+          strings.concatStringsSep "\n\n" (map (x: ''
+            filename=$(echo "${x.inputFile}" | sed -E 's:/nix/store/[a-z0-9]+-([^/]+):\1:')
+            filename=$(basename -- "$filename")
+            filename_no_ext="''${filename%.*}"
+            output_file="$out"/${if x ? outputFile then x.outputFile else ''"$filename_no_ext".html''}
 
-              pandoc ${if x ? title then "--metadata title=\"${x.title}\"" else ""} \
-                --standalone \
-                --template "${templateFile}" \
-                --css "${cssFile}" \
-                --highlight-style "${highlightFile}" \
-                --metadata timestamp="$timestamp" \
-                --metadata debug="$debug" \
-                --lua-filter ${./pandoc/lua/anchor-links.lua} \
-                -V lang=en \
-                -V --mathjax \
-                -f markdown+smart \
-                -o "$out"/"$filename_no_ext".html \
-                ${x.inputFile}
-            '') standalonePages)
-          }
+            pandoc ${if x ? title then "--metadata title=\"${x.title}\"" else ""} \
+              --standalone \
+              --template "${templateFile}" \
+              --css "${cssFile}" \
+              --highlight-style "${highlightFile}" \
+              --metadata timestamp="$timestamp" \
+              --metadata debug="$debug" \
+              --lua-filter ${./pandoc/lua/anchor-links.lua} \
+              -V lang=en \
+              -V --mathjax \
+              -f markdown+smart \
+              -o "$output_file" \
+              ${x.inputFile}
+          '') standalonePages)
+        }
 
-          cd "$out"
-          for dir in "''${dirs[@]}"; do
-            find "$dir" -type f -name "*.md" | while IFS= read -r file; do
-              buildarticle "$file"
-            done
+        cd "$out"
+        for dir in "''${article_dirs[@]}"; do
+          find "$dir" -type f -name "*.md" | while IFS= read -r file; do
+            buildarticle "$file"
           done
+        done
 
         buildoptions() {
           file_path="$1"
@@ -171,18 +193,18 @@ let
         # Generate nixos md docs
         ${
           if nixosModules != null then ''
-            mkdir "$out/nixos"
-            cat ${optionsDocNixos.optionsCommonMark} > nixos/index.md
-            buildoptions nixos/index.md "Nixos Modules - Options Documentation"
+            mkdir -p "$out/nixos-options"
+            cat ${optionsDocNixos.optionsCommonMark} > nixos-options/index.md
+            buildoptions nixos-options/index.md "Nixos Modules - Options Documentation"
           '' else ""
         }
 
         # Generate home-manager md docs
         ${
           if homemanagerModules != null then ''
-            mkdir "$out/home-manager"
-            cat ${optionsDocHome.optionsCommonMark} > home-manager/index.md
-            buildoptions home-manager/index.md "Home Manager Modules - Options Documentation"
+            mkdir -p "$out/home-manager-options"
+            cat ${optionsDocHome.optionsCommonMark} > home-manager-options/index.md
+            buildoptions home-manager-options/index.md "Home Manager Modules - Options Documentation"
           '' else ""
         }
       '';
@@ -193,11 +215,12 @@ let
       runtimeInputs = [ pkgs.fswatch script pkgs.fd ];
       text = ''
         set +e
-        out=$(mktemp -d)
+        in="''${1:-$PWD}"
+        out="$(mktemp -d)/out"
 
-        echo "Starting python server in $out"
-        python -m http.server --bind 127.0.0.1 --directory "$out" &
+        python -m http.server --bind 127.0.0.1 --directory "$out" > /dev/null 2>&1 &
         SERVER_PID=$!
+        echo "Started python server with process id $SERVER_PID in dir $out"
 
         # Set a trap to call the cleanup function on EXIT
         cleanup() {
@@ -206,9 +229,9 @@ let
         }
         trap cleanup EXIT
 
-        mk-pandoc "$out"
+        mk-pandoc "$in" "$out"
         echo "Listening for file changes"
-        fd --extension md | xargs fswatch --event Updated | xargs -n 1 sh -c "date '+%Y-%m-%d - %H:%M:%S %Z'; mk-pandoc $out 1"
+        fd --extension md | xargs fswatch --event Updated | xargs -n 1 sh -c "date '+%Y-%m-%d - %H:%M:%S %Z'; mk-pandoc \"$in\" \"$out\" 1"
       '';
     };
 
