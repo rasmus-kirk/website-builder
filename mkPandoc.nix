@@ -1,6 +1,9 @@
 let
   exports = {
     pkgs,
+    # self.lastModified
+    timestamp ? null,
+    # self.src
     src ? ./.,
     debug ? false,
     cssFile ? "/pandoc/style.css",
@@ -57,6 +60,7 @@ let
         findutils
         gnused
         rsync
+        git
       ];
 
       script = pkgs.writeShellApplication {
@@ -69,9 +73,16 @@ let
           in=''${1:-${src}}
           out=''${2:-"$out"}
           debug=''${3:-"${toString debug}"}
-          timestamp="$(date -u '+%Y-%m-%d - %H:%M:%S %Z')"
 
           cd "$in"
+
+          ${
+            if timestamp != null
+            then ''
+              timestamp="$(date -d "@${toString timestamp}" -u "+%Y-%m-%d - %H:%M:%S %Z")"
+            ''
+            else ''timestamp=""''
+          }
 
           article_dirs_full_paths=()
           article_dirs=()
