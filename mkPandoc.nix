@@ -69,9 +69,10 @@ let
           in=''${1:-${src}}
           out=''${2:-"$out"}
           debug=''${3:-"${toString debug}"}
-          timestamp="$(date -u '+%Y-%m-%d - %H:%M:%S %Z')"
 
           cd "$in"
+
+          timestamp="$(date -d @$(git show -s --format=%ct) -u "+%Y-%m-%d - %H:%M:%S %Z")"
 
           article_dirs_full_paths=()
           article_dirs=()
