@@ -40,8 +40,12 @@
 
 @media (prefers-color-scheme: dark) {
   body {
-    background-color: var(--fg0);
+    background-color: var(--dkblue0);
     color: var(--bg1);
+  }
+
+  main {
+    background-color: var(--fg0);
   }
 
   nav {
@@ -107,6 +111,10 @@
 @media (prefers-color-scheme: light) {
   body {
     color: var(--fg0);
+    background-color: var(--dkblue);
+  }
+
+  main {
     background-color: var(--bge);
   }
 
@@ -150,6 +158,11 @@
 
   code {
     background-color: var(--bg);
+    color: var(--fg0);
+  }
+
+  a code {
+    color: var(--fg0);
   }
 
   #header {
@@ -163,7 +176,8 @@
   }
 
   footer {
-    background-color: #03333b;
+    border-top: 0.5rem solid var(--dkblue0);
+    background-color: var(--dkblue);
     color: #faf8e4;
   }
 }
