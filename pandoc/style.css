@@ -106,6 +106,45 @@
     border-top: 0.5rem solid var(--dkblue1);
     background-color: var(--dkblue0);
   }
+
+  .anchor::before {
+    content: url("/pandoc/link-dark.svg");
+    opacity: 0.40;
+  }
+
+  code {
+    span { color: var(--bg2) !important; } /* Normal */
+    span.al { color: var(--dkred) !important; font-weight: bold; } /* Alert */
+    span.an { color: var(--ltpurple) !important; } /* Annotation */
+    span.at { color: var(--ltblue) !important; } /* Attribute */
+    span.bn { color: var(--ltyellow) !important; } /* BaseN */
+    span.bu { color: var(--ltpurple) !important; font-weight: bold; } /* BuiltIn */
+    span.cf { color: var(--ltred) !important; font-weight: bold; } /* ControlFlow */
+    span.ch { color: var(--ltgreen) !important; } /* Char */
+    span.cn { color: var(--ltred) !important; } /* Constant */
+    span.co { color: var(--ltgrey) !important; } /* Comment */
+    span.cv { color: var(--ltgrey) !important; } /* CommentVar */
+    span.do { color: var(--ltgreen) !important; } /* Documentation */
+    span.dt { color: var(--ltyellow) !important; } /* DataType */
+    span.dv { color: var(--ltpurple) !important; } /* DecVal */
+    span.er { color: var(--ltred) !important; text-decoration: underline; } /* Error */
+    span.ex { color: var(--ltblue) !important; font-weight: bold; } /* Extension */
+    span.fl { color: var(--ltyellow) !important; } /* Float */
+    span.fu { color: var(--ltpurple) !important; } /* Function */
+    span.im { color: var(--ltorange) !important; } /* Import */
+    span.in { color: var(--ltorange) !important; } /* Information */
+    span.kw { color: var(--ltred) !important; font-weight: bold; } /* Keyword */
+    span.op { color: var(--ltpurple) !important; } /* Operator */
+    span.ot { color: var(--ltgreen) !important; } /* Other */
+    span.pp { color: var(--ltblue) !important; } /* Preprocessor */
+    span.re { color: var(--ltblue) !important; } /* RegionMarker */
+    span.sc { color: var(--ltgreen) !important; } /* SpecialChar */
+    span.ss { color: var(--ltgreen) !important; } /* SpecialString */
+    span.st { color: var(--ltgreen) !important; } /* String */
+    span.va { color: var(--ltblue) !important; } /* Variable */
+    span.vs { color: var(--ltred) !important; } /* VerbatimString */
+    span.wa { color: var(--dkyellow) !important; } /* Warning */
+  }
 }
 
 @media (prefers-color-scheme: light) {
@@ -179,6 +218,11 @@
     border-top: 0.5rem solid var(--dkblue0);
     background-color: var(--dkblue);
     color: #faf8e4;
+  }
+
+  .anchor::before {
+    content: url("/pandoc/light-dark.svg");
+    opacity: 0.20;
   }
 }
 
@@ -590,12 +634,10 @@ table td {
 
 /* show the anchor links in headings if one hovers over the heading. */
 .anchor::before {
-  content: url("/pandoc/link.svg");
   display: inline-block;
   font-size: 1em;
   left: -1.5em;
   line-height: 1.5;
-  opacity: 0.15;
   position: relative;
   width: 0em;
 }
