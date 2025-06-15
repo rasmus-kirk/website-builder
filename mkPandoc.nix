@@ -244,7 +244,7 @@ let
 
           python -m http.server --bind 127.0.0.1 --directory "$out" > /dev/null 2>&1 &
           SERVER_PID=$!
-          echo "Started python server with process id $SERVER_PID in dir $out"
+          echo "Started python server with process id $SERVER_PID in dir $out, at localhost:8000"
 
           # Set a trap to call the cleanup function on EXIT
           cleanup() {
