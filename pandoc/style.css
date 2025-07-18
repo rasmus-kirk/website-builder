@@ -50,6 +50,10 @@
     color: var(--bg1);
   }
 
+  .subtitle {
+    color: var(--bg3);
+  }
+
   main {
     background-color: var(--fg0);
   }
@@ -163,8 +167,8 @@
     background-color: var(--bge);
   }
 
-  header {
-    color: var(--bg)
+  .subtitle {
+    color: var(--fg2);
   }
 
   nav {
