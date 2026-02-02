@@ -2,7 +2,8 @@
 
 This is a repo for generating static websites using nix using pandoc. Notably,
 it's able to automatically generate documentation for passed Home Manager/NixOS
-modules. Below, the arguments can be seen for the site builder.
+modules. The default theme is based on gruvbox and supports both light/dark modes.
+Below, the arguments can be seen for the site builder.
 
 - `pkgs`: Required - The nixpkgs instance.
 - `src`: `Path`, Required - Source for the repo, should be set to `./.`.
