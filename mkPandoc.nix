@@ -236,7 +236,12 @@ let
 
       loop = pkgs.writeShellApplication {
         name = "mk-pandoc-loop";
-        runtimeInputs = [pkgs.fswatch script pkgs.fd];
+        runtimeInputs = with pkgs; [
+          script
+          python3
+          fd
+          fswatch
+        ];
         text = ''
           set +e
           in="''${1:-$PWD}"
