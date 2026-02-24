@@ -158,7 +158,7 @@ let
                   if x ? title
                   then "--metadata title=\"${x.title}\""
                   else ""
-                } \
+                } \${if x ? pageTitle then "\n--metadata pagetitle=\"${x.pageTitle}\" \\" else ""}
                   --standalone \
                   --template "${templateFile}" \
                   --css "${cssFile}" \
